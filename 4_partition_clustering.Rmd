@@ -1,0 +1,203 @@
+---
+title: "Partition Clustering Methods, k-means, k-medoids"
+output: html_notebook
+---
+
+#### Objective as per Work Break Down Structure 3.1
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for HCA only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required.</li>
+
+#### Important Libraries
+```{r}
+library(factoextra)
+library(corrplot)
+library(cluster)
+library("clustertend")
+library(grid)
+library(NbClust)
+```
+
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+data <- read.csv('../data/pca_components.csv')  # please note our dataset is already scaled
+data = subset(data, select = -c(X) ) # since two components are kind of same we will drop the second one
+dim(data)
+
+colnames(data)
+
+
+
+```
+
+## Sampling of 10 % of data
+
+```{r}
+#set.seed(123)
+#sample_data <- data[sample(nrow(data), 0.1*nrow(data)),]  # currently consdering 10% of sample data
+#dim(sample_data)
+
+
+#sample_first_four_compnents <- subset(sample_data, select =c('facial_expression','physical_strain','work_strain'))
+
+#dim(sample_first_four_compnents)
+```
+
+## subsetting first three components
+```{r}
+
+first_three_compnents <- subset(data, select =c('PC1','PC2','PC3'))
+
+```
+
+
+### Checking Clustering Tendency
+```{r}
+# Ho - meaningful clusters
+# Ha - no clusters
+
+# using Hopkins statistic we can determine the clustering tendency 
+
+# We can conduct the Hopkins Statistic test iteratively, using 0.5 as the threshold to reject the alternative hypothesis. That is, if H < 0.5, then it is unlikely that D has statistically significant clusters.
+
+# Compute Hopkins statistic for iris dataset
+cluster_tendency <- get_clust_tendency(first_three_compnents, n = nrow(first_three_compnents)-1, graph = FALSE)
+cluster_tendency$hopkins_stat
+
+# with n = nrow(iris_data)-1 , 0.9129644
+```
+
+
+
+### K- Means
+<li>The algorithm tries to find groups by minimizing the distance between the observations (or
+minimizing sum squared distances, or minimize the total squared error), called local optimal
+solutions</li>
+
+<li> The distances are measured based on the coordinates of the observations.</li>
+
+<li>Eucledian Distance gives the best result</li>
+
+<li>Note that, K-mean returns different groups each time you run the algorithm</li>
+
+<li> k-mean is very sensitive to the first choice, and unless the number of observations and
+groups are small, it is almost impossible to get the same clustering.</li>
+
+<li>Another difficulty found with k-mean is the choice of the number of clusters. You can set a high value
+of a large number of groups, to improve stability but you might end up with overfit of data. </li>
+
+
+```{r}
+# data exploration
+head(first_three_compnents)
+summary(first_three_compnents) # Interestingly data is not scaled,we have to scale it 
+```
+
+
+### K means clustering 
+
+### With first five components only 
+```{r}
+kmeans.model.k_2_scaled.only.3.components <- kmeans(first_three_compnents, 
+                          centers = 2, 
+                          iter.max = 10, 
+                          nstart = 100)
+fviz_cluster(kmeans.model.k_2_scaled.only.3.components, first_three_compnents, ellipse.type = "norm")
+```
+
+### optimal number of clusters for k-means 
+
+```{r}
+#determine the number of clusters
+# Plot cluster results
+p1 <- fviz_nbclust(first_three_compnents, FUN = kmeans, method = "wss", 
+                   k.max = 10) +
+  ggtitle("(A) Elbow method")
+p2 <- fviz_nbclust(first_three_compnents, FUN = kmeans, method = "silhouette", 
+                   k.max = 10) +
+  ggtitle("(B) Silhouette method")
+p3 <- fviz_nbclust(first_three_compnents, FUN = kmeans, method = "gap_stat", 
+                   k.max = 10) +
+  ggtitle("(C) Gap statistic")
+
+# Display plots side by side
+gridExtra::grid.arrange(p1, p2, p3, nrow = 1)
+
+### Elbow suggest 4
+# W is a cumulative measure how good the points are clustered in the analysis
+### Silhouette says 3
+### Gap says  1
+```
+
+### calculating average Silhouette width for k means model
+
+```{r}
+dissimilarity_distance <- dist(first_three_compnents, method = "euclidean")
+
+sil <- silhouette(kmeans.model.k_2_scaled.only.3.components$cluster, dissimilarity_distance)
+  fviz_silhouette(sil)
+```
+
+
+
+### Finding pootimal number of cluster 
+
+```{r}
+### NbClust() function: 30 indices for choosing the best number of clusters
+
+# 30 indices rule
+nbclust_out <- NbClust(data = first_three_compnents,  distance = "euclidean",
+        min.nc = 2, max.nc = 6, method = "kmeans")
+```
+
+
+
+
+### k - medoids
+
+```{r}
+#k-medoids
+
+pam.model.k_3_scaled.only.4.components<- pam(sample_first_four_compnents,k = 3,metric = 'euclidean', stand = FALSE)
+fviz_cluster(pam.model.k_3_scaled.only.4.components, scaled_data, ellipse.type = "norm")
+```
+
+
+
+```{r}
+#determine the number of clusters
+# Plot cluster results
+p1 <- fviz_nbclust(sample_first_four_compnents, FUN = pam, method = "wss", 
+                   k.max = 10) +
+  ggtitle("(A) Elbow method")
+p2 <- fviz_nbclust(sample_first_four_compnents, FUN = pam, method = "silhouette", 
+                   k.max = 10) +
+  ggtitle("(B) Silhouette method")
+#p3 <- fviz_nbclust(sample_first_four_compnents, FUN = pam, method = "gap_stat", 
+                  # k.max = 10) +
+  #ggtitle("(C) Gap statistic")
+
+# Display plots side by side
+gridExtra::grid.arrange(p1, p2, nrow = 1)
+```
+
+
+
+
+
+### calculating average Silhouette width for k medoids model
+
+```{r}
+dissimilarity_distance <- dist(sample_first_four_compnents, method = "euclidean")
+
+sil <- silhouette(pam.model.k_3_scaled.only.4.components$cluster, dissimilarity_distance)
+  fviz_silhouette(sil)
+```

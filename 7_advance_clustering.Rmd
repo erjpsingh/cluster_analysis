@@ -1,0 +1,108 @@
+---
+title: "Hierarchical K-Means Clustering: Optimize Clusters"
+output: html_notebook
+---
+
+
+#### Objective as per Work Break Down Structure 3.1
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for HCA only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required.</li>
+
+#### Important Libraries
+```{r}
+library(factoextra)
+library(corrplot)
+library(cluster)
+library("clustertend")
+library(grid)
+library(NbClust)
+```
+
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+data <- read.csv('../data/pca_components.csv')  # please note our dataset is already scaled
+data = subset(data, select = -c(X) ) # since two components are kind of same we will drop the second one
+dim(data)
+
+colnames(data)
+
+
+
+```
+
+## Sampling of 10 % of data
+
+```{r}
+#set.seed(678)
+#sample_data <- data[sample(nrow(data), 0.3*nrow(data)),]  # currently consdering 10% of sample data
+#dim(sample_data)
+
+
+#sample_first_four_compnents <- subset(sample_data, select =c('facial_expression','beauty_attributes','picture_quality_blurness','job_history'))
+
+#dim(sample_first_four_compnents)
+```
+
+
+## subsetting data only three component
+```{r}
+only_three_component <- subset(data, select = c(PC1,PC2, PC3)) 
+```
+
+
+## hierarchical k-means clustering
+
+<li>improving k-means results, using hkmeans</li>
+__Algo__ <br>
+<li>Compute hierarchical clustering and cut the tree into k-clusters</li>
+<li>Compute the center (i.e the mean) of each cluster</li>
+<li>Compute k-means by using the set of cluster centers (defined in step 2) as the initial cluster centers</li>
+https://www.datanovia.com/en/lessons/hierarchical-k-means-clustering-optimize-clusters/
+
+
+```{r}
+hk.model_k2 <-hkmeans(only_three_component, 2)
+```
+
+
+```{r}
+# Visualize the tree
+fviz_dend(hk.model_k2, cex = 0.6, palette = "jco", 
+          rect = TRUE, rect_border = "jco", rect_fill = TRUE)
+```
+
+
+
+```{r}
+# Visualize the hkmeans final clusters
+fviz_cluster(hk.model_k2, palette = "jco", repel = TRUE,
+             ggtheme = theme_classic())
+```
+
+
+```{r}
+fviz_cluster(hk.model_k2, only_three_component, ellipse.type = "norm")
+```
+
+
+
+```{r}
+table(hk.model_k2$cluster)
+```
+
+```{r}
+dissimilarity_distance <- dist(oonly_three_component, method = "euclidean")
+library(fpc)
+
+cluster.stats(dissimilarity_distance, hk.model_k2$cluster)
+```
+

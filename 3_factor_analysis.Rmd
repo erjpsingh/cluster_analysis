@@ -1,0 +1,97 @@
+---
+title: "Factor Analysis"
+output: html_notebook
+---
+
+#### Objective as per Work Break Down Structure 2.2
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for HCA only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required.</li>
+
+The objective of this notebook is to cross-validate the number of components and the loadings in them.
+
+#### Important Libraries
+```{r}
+library('gmodels')
+library('psych')  # Procedures for Psychological, Psychometric, and Personality Research, used for factor analysis
+library('caret')
+library('corrplot')
+
+```
+
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+data <- read.csv('../data/filtered_data.csv')  # please note our dataset is already scaled
+data = subset(data, select = -c(X) ) # dropping X
+dim(data)
+
+colnames(data)
+
+
+
+```
+
+
+```{r}
+#keeping only correlated variables
+
+df_cor = findCorrelation(cor(data), cutoff=0.30)
+hc= sort(df_cor)
+correlated_data = data[, c(hc)]
+dim(correlated_data)
+```
+
+
+
+```{r}
+
+corrplot(cor(correlated_data), method="circle")
+```
+
+
+```{r}
+#Correlated Data
+#Bartlett’s test of sphericity
+cortest.bartlett(cor(correlated_data), n=nrow(correlated_data))
+#the Kaiser-Meyer-Olkin test
+KMO(correlated_data)
+```
+
+
+### Performing FA
+```{r}
+#----4 Factors----------------------------------------------
+fa_psych <- fa(correlated_data, nfactors=3, rotate = "promax")
+print(fa_psych,cu=0.22,digits=2,sort=T)
+fa.diagram(fa_psych,e.size=.035,digits=2, cut=0.10)
+
+```
+
+```{r}
+colnames(fa_psych$loadings) <- c("facial_expression",
+                                 "physical_strain",
+                                 "work_strain")
+```
+
+
+```{r}
+fa.diagram(fa_psych,e.size=.045,digits=2, cut=0.10)
+
+```
+
+
+
+
+# Parallel Analysis of Scree  plot
+```{r}
+fa.parallel.analysis<-fa.parallel(data,fm='minres',fa='fa')
+```
+

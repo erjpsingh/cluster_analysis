@@ -1,0 +1,151 @@
+---
+title: "Cluster Validation"
+output: html_notebook
+---
+
+#### Objective as per Work Break Down Structure 3.1
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for HCA only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required.</li>
+
+#### Important Libraries
+```{r}
+library(factoextra)
+library(corrplot)
+library(cluster)
+library("clustertend")
+library(grid)
+library(clValid)
+library(caret)
+```
+
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+data <- read.csv('../data/pca_components.csv')  # please note our dataset is already scaled
+data = subset(data, select = -c(X) ) # since two components are kind of same we will drop the second one
+dim(data)
+#data = scale(data)
+colnames(data)
+
+
+
+```
+
+## Sampling of 10 % of data
+
+```{r}
+#set.seed(123)
+#sample_data <- data[sample(nrow(data), 0.1*nrow(data)),]
+#dim(sample_data)
+
+
+#sample_first_four_compnents <- subset(sample_data, select =c('facial_expression','physical_strain','work_strain'))
+
+```
+
+## subsetting first three components
+```{r}
+first_three_component <- subset(data, select = c('PC1','PC2','PC3'))
+```
+
+### plotting dissimilarity distances
+```{r}
+fviz_dist(dist(first_three_component), show_labels = FALSE)+
+labs(title = "Dissimilarity Distance")
+```
+
+
+### The K means with optimal clusters
+
+```{r}
+kmeans.model.k_3_scaled.only.3.components <- kmeans(first_three_component, 
+                          centers = 2, 
+                          iter.max = 10, 
+                          nstart = 1000)
+fviz_cluster(kmeans.model.k_3_scaled.only.3.components, first_three_component, ellipse.type = "norm")
+
+```
+
+
+
+```{r}
+dissimilarity_distance <- dist(first_three_component, method = "euclidean")
+
+# R base function hclust() can be used to create the hierarchical tree.
+ward.hclust.model  <-  hclust(d = dissimilarity_distance, method = "ward.D2")
+ward.hclust.model
+```
+
+
+
+```{r}
+
+validation_data <- cbind(first_three_component, kmeans_cluster = kmeans.model.k_3_scaled.only.3.components$cluster)
+```
+
+
+```{r}
+validation_data <- cbind(validation_data, h_cluster = cutree(ward.hclust.model, k = 2))
+```
+
+
+
+```{r}
+typeof(validation_data)
+validation_dataset<-as.data.frame(validation_data)
+typeof(validation_dataset)
+```
+
+
+```{r}
+#naming clusters correctly
+validation_dataset$kmeans_cluster[validation_dataset$kmeans_cluster == 1] <- 'a'
+validation_dataset$kmeans_cluster[validation_dataset$kmeans_cluster == 2] <- 'b'
+
+validation_dataset$h_cluster[validation_dataset$h_cluster == 1] <- 'b'
+validation_dataset$h_cluster[validation_dataset$h_cluster == 2] <- 'a'
+
+```
+
+
+
+```{r}
+table(validation_dataset$kmeans_cluster, validation_dataset$h_cluster)
+```
+
+
+
+```{r}
+confusionMatrix(table(validation_dataset$kmeans_cluster, validation_dataset$h_cluster))
+```
+
+
+
+```{r}
+write.csv(validation_dataset, "../data/validation_data.csv")
+```
+
+
+
+
+
+
+```{r}
+library(fpc)
+
+cluster.stats(dissimilarity_distance, kmeans.model.k_3_scaled.only.3.components$cluster)
+```
+
+
+```{r}
+cluster.stats(dissimilarity_distance, cutree(ward.hclust.model, k = 2))
+```
+

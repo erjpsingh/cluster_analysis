@@ -1,0 +1,226 @@
+---
+title: "PCA (LinkedIn Analysis)"
+output: html_notebook
+---
+
+#### Objective as per Work Break Down Structure 2.1
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for PCA only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required.</li>
+
+The key idea is that with more than 48 columns in the dataset,  it will be very computation intensive to perform clustering so we will perform PCA to reduce the dimentions and then perform clustering.
+
+#### Important Libraries
+```{r}
+library(factoextra)  # for ploting pca analysis
+library(corrplot)    # for correlation plot
+library(ggfortify)   # to plot 2d visualization of PCA
+library(pca3d)       # to plot 3d visualization of PCA
+```
+
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+data <- read.csv('../data/filtered_data.csv')  # please note our dataset is already scaled, mean is approximately same(zero)
+data = subset(data, select = -X )
+dim(data)
+str(data)
+```
+
+
+```{r}
+# Correlation Matrix 
+corrplot(cor(data), method = "number")
+```
+
+
+## 2 Performing PCA 
+
+referrences - 
+http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/118-principal-component-analysis-in-r-prcomp-vs-princomp/
+
+#### pca_attempt_1 , with default parameters using prcomp
+```{r}
+#Spectral decomposition which examines the covariances / correlations between variables
+pca_attempt_1 <- prcomp(data)
+```
+
+
+```{r}
+# Visualize eigenvalues (scree plot). Show the percentage of variances explained by each principal component.
+fviz_eig(pca_attempt_1, addlabels = TRUE)
+```
+
+
+
+
+```{r}
+
+### analying the percentage of variance explained by each component
+var<-pca_attempt_1$sdev^2
+prop_varex <- var/sum(var)
+prop_varex*100
+
+plot(prop_varex, xlab = "Principal Component",
+             ylab = "Proportion of Variance Explained",
+             type = "b", 
+             pch = 19)
+```
+
+<li>It seems 5 is the cut-of, the elbow is at 5</li>
+<li>44.88 % of variation in the data is expained by first 8 components</li>
+
+```{r}
+#Graph of variables. Positive correlated variables point to the same side of the plot. Negative correlated variables point to opposite sides of the graph.
+fviz_pca_var(pca_attempt_1,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+
+
+```{r}
+# Attempt to spot clusters with PCA, this is very heavy function takes a long time to run.
+fviz_pca_ind(pca_attempt_1, col.ind = "cos2")# Color by the quality of representationrepel = TRUE     # Avoid text overlapping )
+```
+
+
+```{r}
+
+autoplot(pca_attempt_1, data = data,
+         loadings = TRUE, loadings.colour = 'blue')
+```
+
+```{r}
+# visulizing the likely hood of clusters
+pca3d(pca_attempt_1)
+```
+
+
+
+```{r}
+# facial expression
+fviz_contrib(pca_attempt_1, choice = "var", axes = 1, top = 5) 
+```
+
+```{r}
+# age_skin_beauty
+fviz_contrib(pca_attempt_1, choice = "var", axes = 2, top = 5) 
+```
+
+```{r}
+# experience_blurness_face_quality
+fviz_contrib(pca_attempt_1, choice = "var", axes = 3, top = 5) 
+```
+
+```{r}
+# job_history
+fviz_contrib(pca_attempt_1, choice = "var", axes = 4, top = 5) 
+```
+
+```{r}
+# skin_quality
+fviz_contrib(pca_attempt_1, choice = "var", axes = 5, top = 5) 
+```
+
+
+```{r}
+# Skin Features 
+fviz_contrib(pca_attempt_1, choice = "var", axes = 6, top = 5) 
+```
+
+
+```{r}
+# job_history
+fviz_contrib(pca_attempt_1, choice = "var", axes = 7, top = 5) 
+```
+
+
+```{r}
+#head
+fviz_contrib(pca_attempt_1, choice = "var", axes = 8, top = 5) 
+```
+
+
+
+
+```{r}
+# Accessing PCA results 
+
+
+# Eigenvalues
+eig.val <- get_eigenvalue(pca_attempt_1)
+eig.val
+
+#### If we go by the concept of eigen values greator than one we should take 17 features, nd 66 % of variation is explained 
+#### But going by elbow plot, it seems there is a elbow after 8 nodes, 43.82 % of varition is captured
+```
+
+
+
+##### getting the first 8 components and saving it into data frame (csv)
+```{r}
+class(pca_attempt_1$x)
+pca_attempt_1$x # new data points
+
+pca_components <- as.data.frame(pca_attempt_1$x[,c("PC1","PC2","PC3", "PC4", "PC5", "PC6", "PC7", "PC8")])
+
+
+```
+
+
+```{r}
+# Saving it to csv for future use
+
+write.csv(x = pca_components, "../data/pca_components.csv")
+```
+
+
+
+
+#### pca_attempt_2 , with default parameters using princomp (just to crosscheck)
+
+```{r}
+# Singular value decomposition which examines the covariances / correlations between individuals
+pca_attempt_2 <- princomp(data, cor = FALSE)
+pca_attempt_2
+
+# Again the eigen values are greator than one for 18 variables 
+```
+
+
+```{r}
+# Visualize eigenvalues (scree plot). Show the percentage of variances explained by each principal component.
+fviz_eig(pca_attempt_2)
+```
+
+
+```{r}
+var<-pca_attempt_2$sdev^2
+prop_varex <- var/sum(var)
+prop_varex*100
+
+plot(prop_varex, xlab = "Principal Component",
+             ylab = "Proportion of Variance Explained",
+             type = "b", 
+             pch = 19)
+```
+
+```{r}
+#Graph of variables. Positive correlated variables point to the same side of the plot. Negative correlated variables point to opposite sides of the graph.
+fviz_pca_var(pca_attempt_2,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+
+

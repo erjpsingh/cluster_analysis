@@ -1,0 +1,175 @@
+---
+title: "Data Cleaning (LinkedIn Analysis)"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+#### Objective as per Work Break Down Structure 1.1.1 and 1.1.2
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for data cleaning only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required. </li>
+
+
+#### Important Libraries
+```{r}
+library("dplyr")  #  data manipulation
+library("wordcloud") #generating word cloud
+```
+
+
+## Data Wrangling 
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+
+# Reading the origional data 
+origional_data <- read.csv('../data/linkedin_data.csv')
+
+
+dim(origional_data)    
+
+#62709 observations and    52 features 
+```
+
+### Droping certain columns 
+<li>X - it is the just the sequence of numbers </li>
+<li>beauty_male,beauty_female,blur,blur_motion - they are dublicate columns</li>
+<li>img - it represents the image id of profile
+```{r}
+data = subset(origional_data, select = -c(X,beauty_male,beauty_female,blur,blur_motion,img) ) ### removing dubicate columns
+
+dim(data) # we have successfully dropped the X column
+
+
+#62709 observations and    46 features 
+```
+
+### Keeping only positive values for average position length
+```{r}
+# considering the fact that length of tenure can not be negative
+data <- subset(data, data$avg_pos_len >= 0) 
+dim(data)
+```
+
+### Dropping age values less than 13, since 13 is the legal age of work in Australia
+```{r}
+data<- subset(data, age >= 13)
+dim(data)
+range(data$age)  # confirming the age bracket is between 13-80
+```
+
+###  Dropping categorical variables
+
+```{r}
+
+# both are unique reference to image and unique reference number
+data <- subset(data, select = - c(c_name, glass,gender , nationality, ethnicity))
+dim(data)
+
+str(data)
+```
+
+
+
+## 2 Checking for Null Values
+
+```{r}
+# there is one na value
+sum(is.na(data))
+```
+
+
+
+##  Detecting outier with mahalanobis methodology
+
+```{r}
+# looking at the structure of the dataset
+str(data)
+```
+
+```{r}
+#grouped data
+
+grouped_data <- aggregate(x =data, 
+                          by = list(data$m_urn), 
+                          FUN = 'mean')
+
+grouped_data <- subset(grouped_data, select = -m_urn)
+```
+
+### selecting only numerical data for outliers analysis
+```{r}
+numeric_data <- select_if(grouped_data, is.numeric)
+dim(numeric_data)  
+# m_urn  is removed
+numeric_data<-subset(numeric_data, select = -m_urn)
+
+# current dimentions - 15237    40
+
+# extracting for sanity check
+write.csv(numeric_data, '../data/numeric_data_before_mahalanobis.csv')
+```
+
+
+```{r}
+# We need to scale the data first
+
+numeric_data_scaled <- as.data.frame(scale(numeric_data,center = TRUE, scale = TRUE)) # scale function returns a matrix, so we have converted it into dataframe 
+dim(numeric_data_scaled)
+
+# at this point the mean of complete data is zero and standard deviation is one
+
+```
+
+### Applying Mahalanobis
+
+```{r}
+# Finding distances
+distances <- mahalanobis(x = numeric_data_scaled , 
+                         center = colMeans(numeric_data_scaled) ,  
+                         cov = cov(numeric_data_scaled),tol=1e-20)
+summary(distances)
+# referrence https://stackoverflow.com/questions/22134398/mahalonobis-distance-in-r-error-system-is-computationally-singular
+
+```
+
+```{r}
+# deciding threshold, we are going with the significane level of 1 %
+cut<-qchisq(0.999,ncol(numeric_data_scaled))
+cut # 84.03713 is the cut off
+```
+
+
+```{r}
+filtered_data <- numeric_data_scaled[distances<cut,]
+dim(filtered_data)
+# after processing we are left with 32951 rows, we might have to join back based on the index to get back categorical columns.
+```
+
+
+```{r}
+write.csv(x = filtered_data, "../data/filtered_data.csv")
+```
+
+
+
+### Word Clou, for company name 
+
+
+```{r}
+wordcloud(words = origional_data$c_name, freq = table(origional_data$c_name), min.freq = 1,
+          max.words=100, random.order=FALSE, rot.per=0.45, 
+          colors=brewer.pal(8, "Dark2"))
+
+
+# https://www.wordclouds.com/
+```
+

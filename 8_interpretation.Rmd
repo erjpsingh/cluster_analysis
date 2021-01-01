@@ -1,0 +1,71 @@
+---
+title: "Cluster Interpretation"
+output: html_notebook
+---
+
+#### Objective as per Work Break Down Structure 3.1
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for HCA only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required.</li>
+
+#### Important Libraries
+```{r}
+library(factoextra)
+library(corrplot)
+library(cluster)
+library("clustertend")
+library(grid)
+library(clValid)
+library(caret)
+library(DMwR)
+```
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+original_data <- read.csv('filtered_data.csv')    # this is scaled data   :(
+recovered_data <- read.csv('recovered_data.csv')  # this is unscaled data :) 
+validation_data <- read.csv("validation_data.csv")
+
+dim(recovered_data) 
+dim(validation_data)
+```
+
+
+
+### join tables
+```{r}
+#merged_data <- merge(x=original_data,y=validation_data,by="X")
+merged_data <- cbind(recovered_data,validation_data)
+dim(merged_data)
+```
+
+### Selecting only desired columns , ie removing the PCA components and X
+
+```{r}
+mydata <- subset(merged_data, select = -c(X,PC1, PC2, PC3) )
+mydata <- subset(mydata, select = -c(X) )
+
+dim(mydata) # 48 data features  and 2 from clustering analysis  
+```
+
+### selecting only those who are identified into same clsuters by both
+```{r}
+final_data <- subset(mydata, mydata$kmeans_cluster == mydata$h_cluster)
+dim(final_data) #25556 data points are corectly identified by both clustering technique
+
+write.csv(final_data, "final_data_for_interpretation.csv")
+```
+
+
+### Aggregations
+```{r}
+aggregate(final_data, by = list(final_data$kmeans_cluster), mean)
+```
+

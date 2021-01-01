@@ -1,0 +1,175 @@
+---
+title: "Hierarchical Clustering, Agglomerative and Divisive "
+output: html_notebook
+---
+
+#### Objective as per Work Break Down Structure 3.1
+
+<li> Column by Column analysis is already done and the results can be obtained from https://docs.google.com/document/d/1eM_n3l7aFJWi6ryz_2_3750k1JmR-NseMxmHHHh-JaU/edit# </li>
+<li> This notebook has to strictly used for HCA only. </li>
+<li> All attemts has to be made to preserve all versions of dataset.</li>
+<li> Camel Coding has to be followed.</li>
+<li> Please add the relevant comments and indexes where ever required.</li>
+
+
+
+#### Important Libraries
+```{r}
+library(factoextra)
+library(corrplot)
+library(cluster)
+library("clustertend")
+library(grid)
+library(NbClust)
+```
+
+
+## 1 Reading Data
+
+```{r}
+# Setting up the environment
+rm(list = ls())
+getwd()
+data <- read.csv('../data/pca_components.csv')  # please note our dataset is already scaled
+data = subset(data, select = -c(X) ) # since two components are kind of same we will drop the second one
+dim(data)
+
+colnames(data)
+
+
+
+```
+
+## Sampling of 10 % of data
+
+```{r}
+#set.seed(123)
+#sample_data <- data[sample(nrow(data), 0.1*nrow(data)),]
+#dim(sample_data)
+
+
+#sample_first_four_compnents <- subset(sample_data, select =c('facial_expression','physical_strain','work_strain'))
+
+#dim(sample_first_four_compnents)
+```
+
+## subsetting first three components
+```{r}
+first_three_components <- subset(data, select = c('PC1', 'PC2','PC3'))
+dim(first_three_components)
+```
+
+
+
+
+### HCA
+
+
+#### selecting the best linkage method
+```{r}
+
+######## methods to assess
+m <- c( "average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
+
+# function to compute coefficient
+ac <- function(x) {
+  agnes(first_three_components, method = x)$ac
+}
+
+# get agglomerative coefficient for each linkage method
+purrr::map_dbl(m, ac)
+##   average    single  complete      ward
+
+
+# ward gives us the maximum clustering index(maximum clustering structure found)
+```
+### Ward Linkage
+
+
+```{r}
+dissimilarity_distance <- dist(first_three_components, method = "euclidean")
+
+# R base function hclust() can be used to create the hierarchical tree.
+ward.hclust.model  <-  hclust(d = dissimilarity_distance, method = "ward.D2")
+ward.hclust.model
+```
+
+### Finding optimal number of cluster 
+
+```{r}
+### NbClust() function: 30 indices for choosing the best number of clusters
+
+# 30 indices rule
+nbclust_out <- NbClust(data = first_three_components,  distance = "euclidean",
+        min.nc = 2, max.nc = 4, method = "ward.D2")
+```
+
+
+
+```{r}
+#determine the number of clusters
+# Plot cluster results
+p1 <- fviz_nbclust(first_three_components, FUN = hcut, method = "wss", 
+                   k.max = 10) +
+  ggtitle("(A) Elbow method")
+p2 <- fviz_nbclust(first_three_components, FUN = hcut, method = "silhouette", 
+                   k.max = 10) +
+  ggtitle("(B) Silhouette method")
+p3 <- fviz_nbclust(sample_first_four_compnents, FUN = hcut, method = "gap_stat", k.max = 10) + ggtitle("(C) Gap statistic")
+
+# Display plots side by side
+gridExtra::grid.arrange(p1, p2,p3, nrow = 1)
+
+```
+
+
+### calculating average Silhouette width for HCA with ward
+
+```{r}
+
+sil <- silhouette(cutree(ward.hclust.model ,k =2), dissimilarity_distance)
+  fviz_silhouette(sil)
+```
+
+#### Ward linkage
+
+```{r}
+### Dendodram
+
+fviz_dend(ward.hclust.model,cex = 0.5)
+```
+
+#### Complete linkage
+
+```{r}
+# R base function hclust() can be used to create the hierarchical tree.
+complete.hclust.model  <-  hclust(d = dissimilarity_distance, method = "complete")
+### Dendodram
+fviz_dend(complete.hclust.model,cex = 0.5)
+```
+
+
+### Average Linkage
+
+```{r}
+# R base function hclust() can be used to create the hierarchical tree.
+average.hclust.model  <-  hclust(d = dissimilarity_distance, method = "average")
+### Dendodram
+fviz_dend(average.hclust.model,cex = 0.5)
+```
+
+
+
+## Single Linkage
+
+```{r}
+# R base function hclust() can be used to create the hierarchical tree.
+single.hclust.model  <-  hclust(d = dissimilarity_distance, method = "single")
+### Dendodram
+fviz_dend(single.hclust.model,cex = 0.5)
+```
+
+
+
+
